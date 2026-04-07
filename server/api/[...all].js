@@ -5,5 +5,12 @@ export const config = {
 };
 
 export default function handler(req, res) {
-  return app.handle(req, res);
+  try {
+    return app(req, res);
+  } catch (err) {
+    console.error("[vercel handler] crash", err);
+    res
+      .status(500)
+      .json({ ok: false, error: err?.message || "Internal Server Error" });
+  }
 }
