@@ -12,7 +12,25 @@ const defaultData = {
   contacts: [],
 };
 
+let memoryData = { ...defaultData };
+
+const isServerless = () => {
+  // Vercel sets VERCEL=1, but keep this generic.
+  return Boolean(process.env.VERCEL);
+};
+
+const normalizeData = (data) => {
+  return {
+    projects: Array.isArray(data?.projects) ? data.projects : [],
+    contacts: Array.isArray(data?.contacts) ? data.contacts : [],
+  };
+};
+
 export const ensureDataFile = async () => {
+  if (isServerless()) {
+    return;
+  }
+
   try {
     await fs.access(dataFilePath);
   } catch {
@@ -21,22 +39,34 @@ export const ensureDataFile = async () => {
 };
 
 export const readData = async () => {
-  await ensureDataFile();
-  const raw = await fs.readFile(dataFilePath, "utf8");
-  const parsed = JSON.parse(raw);
-  return {
-    projects: Array.isArray(parsed.projects) ? parsed.projects : [],
-    contacts: Array.isArray(parsed.contacts) ? parsed.contacts : [],
-  };
+  if (isServerless()) {
+    return normalizeData(memoryData);
+  }
+
+  try {
+    await ensureDataFile();
+    const raw = await fs.readFile(dataFilePath, "utf8");
+    const parsed = JSON.parse(raw);
+    return normalizeData(parsed);
+  } catch {
+    // If disk isn't writable/readable (or file is corrupted), fall back.
+    return normalizeData(memoryData);
+  }
 };
 
 export const writeData = async (data) => {
-  const safe = {
-    projects: Array.isArray(data?.projects) ? data.projects : [],
-    contacts: Array.isArray(data?.contacts) ? data.contacts : [],
-  };
+  const safe = normalizeData(data);
+
+  if (isServerless()) {
+    memoryData = safe;
+    return;
+  }
 
   const tmpPath = `${dataFilePath}.tmp`;
-  await fs.writeFile(tmpPath, JSON.stringify(safe, null, 2), "utf8");
-  await fs.rename(tmpPath, dataFilePath);
+  try {
+    await fs.writeFile(tmpPath, JSON.stringify(safe, null, 2), "utf8");
+    await fs.rename(tmpPath, dataFilePath);
+  } catch {
+    memoryData = safe;
+  }
 };
