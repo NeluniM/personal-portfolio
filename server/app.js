@@ -8,6 +8,14 @@ import { readData, writeData } from "./storage.js";
 export const createApp = () => {
   const app = express();
 
+  process.on("unhandledRejection", (reason) => {
+    console.error("[unhandledRejection]", reason);
+  });
+
+  process.on("uncaughtException", (err) => {
+    console.error("[uncaughtException]", err);
+  });
+
   const corsOriginRaw = process.env.CORS_ORIGIN || "http://localhost:5173";
   const corsOrigins = corsOriginRaw
     .split(",")
@@ -139,6 +147,15 @@ export const createApp = () => {
   app.get("/api/admin/contacts", requireAdmin, async (_req, res) => {
     const data = await readData();
     res.json({ ok: true, contacts: data.contacts });
+  });
+
+  // Error handler (must be last)
+  // eslint-disable-next-line no-unused-vars
+  app.use((err, _req, res, _next) => {
+    console.error("[api] error", err);
+    res
+      .status(500)
+      .json({ ok: false, error: err?.message || "Internal Server Error" });
   });
 
   return app;
