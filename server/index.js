@@ -8,11 +8,24 @@ import { readData, writeData } from "./storage.js";
 const app = express();
 
 const port = Number(process.env.PORT || 5050);
-const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
+const corsOriginRaw = process.env.CORS_ORIGIN || "http://localhost:5173";
+const corsOrigins = corsOriginRaw
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(
   cors({
-    origin: corsOrigin,
+    origin: (origin, callback) => {
+      // Allow requests with no Origin header (curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (corsOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
   })
 );
 
