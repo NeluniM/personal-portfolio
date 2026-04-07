@@ -15,8 +15,10 @@ dist-ssr
 # Env files (secrets)
 .env
 .env.*
+!.env.example
 server/.env
 server/.env.*
+!server/.env.example
 
 # Local persistence (contains admin data/messages)
 server/data.json
